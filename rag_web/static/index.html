@@ -1,0 +1,326 @@
+<!--
+  Copyright (c) 2026 Prashanth Shankar Narayan
+  SPDX-License-Identifier: Apache-2.0
+-->
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RAG Web GUI</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="app">
+    <header class="app-header">
+      <div>
+        <h1>RAG Control Deck</h1>
+        <p>Ask, ingest, and monitor your Qdrant-backed knowledge base.</p>
+      </div>
+      <div class="status-pill" id="health-pill">Checking health…</div>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="ask">Ask</button>
+      <button class="tab" data-tab="ingest">Ingest</button>
+      <button class="tab" data-tab="repos">Repos</button>
+      <button class="tab" data-tab="debug">Debug</button>
+      <button class="tab" data-tab="settings">Settings</button>
+      <button class="tab" data-tab="health">Health</button>
+    </nav>
+
+    <main class="panes">
+      <section id="tab-ask" class="pane active">
+        <form id="ask-form" class="card">
+          <label>
+            Question
+            <textarea id="ask-question" rows="3" placeholder="Ask about your repos..."></textarea>
+          </label>
+          <div class="row ask-repo-row">
+            <label>
+              Repo Selection
+              <details class="select-panel" id="repo-select">
+                <summary id="repo-select-summary">All repos</summary>
+                <div class="select-panel-body">
+                  <label class="checkbox">
+                    <input id="ask-all-repos" type="checkbox" checked />
+                    All repos
+                  </label>
+                  <input id="repo-filter" type="text" placeholder="Filter repos or groups..." />
+                  <div id="ask-groups-section" class="select-section">
+                    <div class="section-title">Repo Groups</div>
+                    <div id="repo-groups-list" class="select-list"></div>
+                    <div id="repo-groups-empty" class="muted">No repo groups defined.</div>
+                    <div class="helper ask-disabled-note">Disabled when All repos is selected.</div>
+                  </div>
+                  <div id="ask-repos-section" class="select-section">
+                    <div class="section-title">Repos</div>
+                    <div id="repo-list" class="select-list"></div>
+                    <div id="repo-list-empty" class="muted">No repos found.</div>
+                    <div class="helper ask-disabled-note">Disabled when All repos is selected.</div>
+                  </div>
+                </div>
+              </details>
+            </label>
+            <label>
+              Top K
+              <input id="ask-topk" type="number" min="1" value="10" />
+            </label>
+          </div>
+          <div class="row">
+            <label class="checkbox">
+              <input id="ask-sources" type="checkbox" checked />
+              Show sources
+            </label>
+          </div>
+          <button id="ask-submit" class="primary" type="submit" disabled>Ask</button>
+        </form>
+
+        <div class="card" id="ask-results">
+          <h2>Answer</h2>
+          <div id="answer-output" class="answer"></div>
+          <div class="split">
+            <div>
+              <h3>Citations</h3>
+              <ul id="citations-list" class="list"></ul>
+            </div>
+            <div>
+              <h3>Sources</h3>
+              <div id="sources-list"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-ingest" class="pane">
+        <div class="card">
+          <form id="ingest-form">
+            <div class="row">
+              <label id="ingest-repo-field" class="repo-choice">
+                <div class="label-row">
+                  <span>Repo selection</span>
+                  <div id="ingest-repo-mode" class="segmented sm">
+                    <button type="button" class="segmented-btn active" data-mode="existing">Existing</button>
+                    <button type="button" class="segmented-btn" data-mode="new">New</button>
+                  </div>
+                </div>
+                <div id="ingest-repo-pickers">
+                  <div class="repo-picker" data-mode="existing">
+                    <details class="select-panel ingest" id="ingest-repo-select">
+                      <summary id="ingest-repo-summary">default</summary>
+                      <div class="select-panel-body">
+                        <input id="ingest-repo-filter" type="text" placeholder="Filter repos or groups..." />
+                        <div class="select-section">
+                          <div class="section-title">Repo Groups</div>
+                          <div id="ingest-groups-list" class="select-list"></div>
+                          <div id="ingest-groups-empty" class="muted">No repo groups defined.</div>
+                        </div>
+                        <div class="select-section">
+                          <div class="section-title">Repos</div>
+                          <div id="ingest-repo-list" class="select-list"></div>
+                          <div id="ingest-repo-list-empty" class="muted">No repos found.</div>
+                        </div>
+                      </div>
+                    </details>
+                    <div class="helper">
+                      If multiple repos are selected, Path applies to all. Leave Path empty to use each repo's stored roots.
+                    </div>
+                    <div class="helper">
+                      Existing repos ingest new and updated files only.
+                    </div>
+                  </div>
+                  <div class="repo-picker hidden" data-mode="new">
+                    <div class="repo-new-grid">
+                      <input id="ingest-repo-new-name" type="text" placeholder="New repo name" />
+                      <input id="ingest-repo-new-id" type="text" placeholder="repo_id (auto-filled)" />
+                    </div>
+                    <div id="ingest-repo-new-error" class="repo-error"></div>
+                    <div class="helper">Repo ID auto-fills from name. You can override it (no "::").</div>
+                  </div>
+                </div>
+              </label>
+            </div>
+            <label class="ingest-path">
+              Path (allowlisted roots only)
+              <input id="ingest-path" list="path-suggestions" placeholder="/data/input/..." />
+              <datalist id="path-suggestions"></datalist>
+            </label>
+            <div id="ingest-delete-controls">
+              <div class="row">
+                <label class="checkbox">
+                  <input id="ingest-delete" type="checkbox" />
+                  Delete missing
+                </label>
+              </div>
+              <div class="helper delete-hint">
+                Removes vectors for files no longer present under the selected roots.
+              </div>
+            </div>
+            <button id="ingest-submit" class="primary" type="submit" disabled>Start ingest</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="row between">
+            <h2>Live ingest logs</h2>
+            <span id="ingest-status" class="status">Idle</span>
+          </div>
+          <pre id="ingest-logs" class="log"></pre>
+        </div>
+      </section>
+
+      <section id="tab-debug" class="pane">
+        <div class="card">
+          <h2>File section</h2>
+          <div class="row">
+            <label class="debug-repo-field">
+              Repo
+              <select id="debug-repo"></select>
+            </label>
+            <label class="debug-file-field">
+              File
+              <select id="debug-file"></select>
+            </label>
+            <button id="debug-load" class="primary" type="button" disabled>Load chunks</button>
+          </div>
+          <div id="debug-file-meta" class="helper"></div>
+        </div>
+
+        <div class="card">
+          <div class="row between">
+            <h2>Chunks derived from file</h2>
+            <span id="debug-status" class="status">Idle</span>
+          </div>
+          <div id="debug-chunks-empty" class="muted">Select a file and load chunks.</div>
+          <div id="debug-chunks-list" class="debug-chunks-list"></div>
+        </div>
+      </section>
+
+      <section id="tab-repos" class="pane">
+        <div class="card" id="repo-groups-card">
+          <div class="row between">
+            <div>
+              <h2>Repo groups</h2>
+              <div class="subtle">Bundle repos for faster Ask scoping.</div>
+            </div>
+            <button id="group-create" class="ghost">New group</button>
+          </div>
+          <div id="group-list" class="group-list"></div>
+          <div id="group-empty" class="muted">No repo groups yet.</div>
+        </div>
+        <div class="card">
+          <div class="row between">
+            <h2>Known repos</h2>
+            <div class="row">
+              <button id="repo-create-open" class="ghost">New repo</button>
+              <button id="repos-refresh" class="ghost">Refresh</button>
+            </div>
+          </div>
+          <div id="repo-create" class="repo-create hidden">
+            <div class="row">
+              <label>
+                Repo name
+                <input id="repo-create-name" type="text" placeholder="Quantum DXi" />
+              </label>
+              <label>
+                Repo ID
+                <input id="repo-create-id" type="text" placeholder="quantum_dxi" />
+              </label>
+            </div>
+            <div class="row between">
+              <div>
+                <div id="repo-create-error" class="repo-error"></div>
+                <div class="helper">Repo ID auto-fills from name. You can override it (no "::").</div>
+              </div>
+              <div class="row">
+                <button id="repo-create-save" class="primary action" type="button">Create repo</button>
+                <button id="repo-create-cancel" class="ghost action" type="button">Cancel</button>
+              </div>
+            </div>
+          </div>
+          <div id="repo-create-success" class="repo-success hidden">
+            <div class="repo-success-text">Repo created.</div>
+            <button id="repo-create-ingest" class="ghost action" type="button">Ingest now</button>
+          </div>
+          <table class="table" id="repos-table">
+            <thead>
+              <tr>
+                <th title="Double-click a repo name to rename">Name</th>
+                <th>Roots</th>
+                <th>Files</th>
+                <th>Last run</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div id="repos-empty" class="muted">No repos found yet.</div>
+        </div>
+      </section>
+
+      <section id="tab-settings" class="pane">
+        <div class="card">
+          <h2>Settings</h2>
+          <div class="subtle">Configure runtime secrets and startup requirements.</div>
+          <div id="settings-openai-status" class="settings-status">Checking OpenAI API key...</div>
+          <label class="settings-field">
+            OpenAI API key
+            <input
+              id="settings-openai-key"
+              type="password"
+              placeholder="sk-..."
+              autocomplete="off"
+            />
+          </label>
+          <div class="row settings-actions">
+            <button id="settings-openai-save" class="primary" type="button">Save key</button>
+            <button id="settings-openai-test" class="ghost" type="button">Test connection</button>
+            <button id="settings-openai-clear" class="ghost danger" type="button">Clear saved key</button>
+            <button id="settings-openai-refresh" class="ghost" type="button">Refresh status</button>
+          </div>
+          <div id="settings-openai-message" class="helper"></div>
+        </div>
+      </section>
+
+      <section id="tab-health" class="pane">
+        <div class="card">
+          <div class="row between">
+            <h2>System health</h2>
+            <button id="health-refresh" class="ghost">Refresh</button>
+          </div>
+          <pre id="health-json" class="log"></pre>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="settings-first-run" class="settings-gate hidden">
+    <div class="settings-gate-card">
+      <h2>Setup Required</h2>
+      <p class="subtle">
+        OpenAI API key is required before Ask and Ingest can run. Add it now to continue.
+      </p>
+      <label class="settings-field">
+        OpenAI API key
+        <input
+          id="settings-gate-key"
+          type="password"
+          placeholder="sk-..."
+          autocomplete="off"
+        />
+      </label>
+      <div class="row settings-actions">
+        <button id="settings-gate-save" class="primary" type="button">Save and continue</button>
+        <button id="settings-gate-open" class="ghost" type="button">Open Settings tab</button>
+      </div>
+      <div id="settings-gate-message" class="helper"></div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+  <script src="/static/groups.js"></script>
+</body>
+</html>

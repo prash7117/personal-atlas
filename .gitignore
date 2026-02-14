@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.rag_ingest.lock
+.rag_ingest_state.json
+repo_groups.json
+data/*
+!data/input/
+!data/input/.gitkeep
+rag_web/__pycache__/

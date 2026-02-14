@@ -1,0 +1,15 @@
+# Copyright (c) 2026 Prashanth Shankar Narayan
+# SPDX-License-Identifier: Apache-2.0
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.env
+.git/
+.gitignore
+.pytest_cache/
+.mypy_cache/
+data/
+*.log

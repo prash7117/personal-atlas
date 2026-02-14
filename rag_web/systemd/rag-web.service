@@ -1,0 +1,20 @@
+# Copyright (c) 2026 Prashanth Shankar Narayan
+# SPDX-License-Identifier: Apache-2.0
+
+[Unit]
+Description=RAG Web GUI (FastAPI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/mnt/c/docker
+EnvironmentFile=/mnt/c/docker/.env
+ExecStart=/mnt/c/docker/rag_web/run_service.sh
+StandardOutput=append:/var/log/rag-web/uvicorn.log
+StandardError=append:/var/log/rag-web/uvicorn.log
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
