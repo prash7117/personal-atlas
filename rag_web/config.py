@@ -51,7 +51,7 @@ ENV_LOADED = load_dotenv(dotenv_path=str(ENV_PATH))
 
 QDRANT_URL = os.environ.get("QDRANT_URL")
 QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION")
-OPENAI_CHAT_MODEL = os.environ.get("OPENAI_CHAT_MODEL", "gpt-4.1-mini")
+OPENAI_CHAT_MODEL = os.environ.get("OPENAI_CHAT_MODEL", "gpt-5-mini")
 OPENAI_EMBED_MODEL = os.environ.get("OPENAI_EMBED_MODEL", "text-embedding-3-small")
 
 

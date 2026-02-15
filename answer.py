@@ -20,7 +20,7 @@ load_dotenv(dotenv_path=".env")
 QDRANT_URL = os.environ["QDRANT_URL"]
 COLLECTION = os.environ["QDRANT_COLLECTION"]
 EMBED_MODEL = os.environ.get("OPENAI_EMBED_MODEL", "text-embedding-3-small")
-CHAT_MODEL = os.environ.get("OPENAI_CHAT_MODEL", "gpt-4.1-mini")
+CHAT_MODEL = os.environ.get("OPENAI_CHAT_MODEL", "gpt-5-mini")
 
 
 STATE_FILE = ".rag_ingest_state.json"
