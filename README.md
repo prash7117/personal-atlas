@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Personal RAG Assistant
+A self-hosted personal AI knowledge assistant and AI search tool. PersonalAtlas ingests documents, indexes them using Qdrant, and provides a web-based interface to ask questions and receive grounded answers strictly based on your own data.
 
 Docker-first personal assistant with:
 - FastAPI web UI (`rag_web`)
