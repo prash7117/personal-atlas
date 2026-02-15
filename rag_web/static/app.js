@@ -82,7 +82,7 @@ function displayNameFor(repo) {
 }
 
 function isOpenAIConfigured() {
-  return Boolean(state.openaiApiKeySet && state.openaiApiKeyVerified);
+  return Boolean(state.openaiApiKeySet);
 }
 
 function setSettingsMessage(text, isError) {
@@ -120,7 +120,7 @@ function updateSettingsStatusLine(testPayload) {
   const statusEl = qs('#settings-openai-status');
   if (!statusEl) return;
 
-  statusEl.classList.toggle('missing', !isOpenAIConfigured());
+  statusEl.classList.toggle('missing', !state.openaiApiKeySet);
   if (!state.openaiApiKeySet) {
     statusEl.textContent = 'OpenAI API key is not configured.';
     return;
