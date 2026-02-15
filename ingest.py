@@ -15,8 +15,10 @@ from html.parser import HTMLParser
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
+    Distance,
     PointStruct,
     PointIdsList,
+    VectorParams,
 )
 from openai import OpenAI
 
@@ -652,6 +654,29 @@ def embed_texts(oai: OpenAI, texts: List[str]) -> List[List[float]]:
     return vectors
 
 
+def ensure_collection_exists(qdrant: QdrantClient, oai: OpenAI) -> None:
+    """Create collection lazily when missing, using current embed model dimension."""
+    if qdrant.collection_exists(COLLECTION):
+        return
+
+    probe = oai.embeddings.create(model=EMBED_MODEL, input=["qdrant-probe"])
+    vector_size = len(probe.data[0].embedding)
+
+    try:
+        qdrant.create_collection(
+            collection_name=COLLECTION,
+            vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
+        )
+        print(
+            f"Created missing collection '{COLLECTION}' "
+            f"(vector_size={vector_size})."
+        )
+    except Exception as exc:
+        # Another process may create it concurrently between the exists check and create call.
+        if not qdrant.collection_exists(COLLECTION):
+            raise exc
+
+
 def upsert_points(qdrant: QdrantClient, points: List[PointStruct]) -> None:
     if points:
         qdrant.upsert(collection_name=COLLECTION, points=points)
@@ -783,6 +808,7 @@ def ingest(
 
     qdrant = QdrantClient(url=QDRANT_URL)
     oai = OpenAI(api_key=OPENAI_API_KEY)
+    ensure_collection_exists(qdrant, oai)
 
     seen_relpaths = set()
     points_buffer: List[PointStruct] = []
