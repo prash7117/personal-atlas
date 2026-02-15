@@ -5,3 +5,4 @@ qdrant-client
 pydantic
 openai
 pypdf
+python-docx
