@@ -58,7 +58,7 @@ pip install -r /mnt/c/docker/rag_web/requirements.txt
 QDRANT_URL=http://localhost:6333
 QDRANT_COLLECTION=my_rag
 OPENAI_API_KEY=...
-OPENAI_CHAT_MODEL=gpt-4.1-mini  # optional
+OPENAI_CHAT_MODEL=gpt-5-mini  # optional
 ```
 
 ## Run
