@@ -4,6 +4,11 @@
 # Personal RAG Assistant
 A self-hosted personal AI knowledge assistant and AI search tool. PersonalAtlas ingests documents, indexes them using Qdrant, and provides a web-based interface to ask questions and receive grounded answers strictly based on your own data.
 
+## Who Should Use
+
+1. Software developers: It supports ingesting source code files, `.docx`, `.pptx`, and more.
+2. Anyone with documents who wants direct insights, instead of manually searching files for required details and reasoning.
+
 Docker-first personal assistant with:
 - FastAPI web UI (`rag_web`)
 - Qdrant vector store
