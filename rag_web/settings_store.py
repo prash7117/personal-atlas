@@ -67,3 +67,21 @@ def clear_openai_api_key() -> bool:
     data["updated_ts"] = int(time.time())
     _write_settings(data)
     return True
+
+
+def get_openai_chat_model() -> str:
+    """Return saved OpenAI chat model, or empty string."""
+    data = _read_settings()
+    value = data.get("openai_chat_model")
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def set_openai_chat_model(chat_model: str) -> None:
+    """Persist OpenAI chat model to runtime settings."""
+    cleaned = chat_model.strip()
+    data = _read_settings()
+    data["openai_chat_model"] = cleaned
+    data["updated_ts"] = int(time.time())
+    _write_settings(data)

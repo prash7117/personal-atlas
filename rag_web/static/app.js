@@ -10,6 +10,7 @@ const DISPLAY_NAME_MAX = 80;
 const REPO_ID_MAX = 80;
 const REPO_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_.\- ]*$/;
 const DEFAULT_REPO_ID = 'default';
+const DEFAULT_CHAT_MODEL = 'gpt-5-mini';
 
 const state = {
   repos: [],
@@ -33,6 +34,9 @@ const state = {
   debugFilesRepoId: '',
   debugFiles: [],
   allowedIngestRoots: [],
+  openaiChatModel: DEFAULT_CHAT_MODEL,
+  openaiChatModelSource: 'default',
+  openaiChatModelOptions: [DEFAULT_CHAT_MODEL],
   openaiApiKeySet: false,
   openaiApiKeyVerified: false,
   openaiApiKeySource: 'missing',
@@ -79,6 +83,46 @@ async function fetchJSON(url, options) {
 function displayNameFor(repo) {
   const raw = (repo && (repo.display_name || repo.repo_id)) || '';
   return raw.trim();
+}
+
+function normalizeChatModel(value) {
+  const model = (value || '').trim();
+  return model || DEFAULT_CHAT_MODEL;
+}
+
+function renderChatModelOptions() {
+  const select = qs('#settings-openai-chat-model');
+  if (!select) return;
+
+  const options = [];
+  const seen = new Set();
+  const appendOption = (value) => {
+    const model = normalizeChatModel(value);
+    if (!model || seen.has(model)) return;
+    seen.add(model);
+    options.push(model);
+  };
+
+  (state.openaiChatModelOptions || []).forEach((model) => appendOption(model));
+  appendOption(state.openaiChatModel);
+  appendOption(DEFAULT_CHAT_MODEL);
+
+  select.innerHTML = '';
+  options.forEach((model) => {
+    const option = document.createElement('option');
+    option.value = model;
+    option.textContent = model;
+    select.appendChild(option);
+  });
+  select.value = normalizeChatModel(state.openaiChatModel);
+}
+
+function selectedChatModel() {
+  const select = qs('#settings-openai-chat-model');
+  if (!select) {
+    return normalizeChatModel(state.openaiChatModel);
+  }
+  return normalizeChatModel(select.value);
 }
 
 function isOpenAIConfigured() {
@@ -147,19 +191,43 @@ function updateSettingsStatusLine(testPayload) {
 
 function updateSettingsStatusUi(payload) {
   const clearBtn = qs('#settings-openai-clear');
+  const hasOwn = (name) =>
+    Boolean(payload) && Object.prototype.hasOwnProperty.call(payload, name);
 
-  const configured = Boolean(payload && payload.openai_api_key_set);
-  const source = (payload && payload.source) || 'missing';
-  const canClear = Boolean(payload && payload.can_clear);
+  const configured = hasOwn('openai_api_key_set')
+    ? Boolean(payload.openai_api_key_set)
+    : state.openaiApiKeySet;
+  const source = hasOwn('source') ? payload.source || 'missing' : state.openaiApiKeySource;
+  const canClear = hasOwn('can_clear') ? Boolean(payload.can_clear) : false;
+  const chatModel = normalizeChatModel(
+    hasOwn('openai_chat_model') && typeof payload.openai_chat_model === 'string'
+      ? payload.openai_chat_model
+      : state.openaiChatModel
+  );
+  const chatModelSource = hasOwn('openai_chat_model_source')
+    ? payload.openai_chat_model_source || 'default'
+    : state.openaiChatModelSource;
+  const chatModelOptions =
+    payload && Array.isArray(payload.openai_chat_model_options)
+      ? payload.openai_chat_model_options
+          .map((model) => normalizeChatModel(model))
+          .filter((model) => Boolean(model))
+      : state.openaiChatModelOptions;
   const allowedRoots =
     payload && Array.isArray(payload.allowed_ingest_roots)
       ? payload.allowed_ingest_roots.filter((root) => root)
-      : [];
+      : state.allowedIngestRoots;
 
+  state.openaiChatModel = chatModel;
+  state.openaiChatModelSource = chatModelSource;
+  state.openaiChatModelOptions = chatModelOptions.length
+    ? chatModelOptions
+    : [chatModel];
   state.openaiApiKeySet = configured;
   state.openaiApiKeySource = source;
   state.openaiApiKeyVerified = false;
   state.allowedIngestRoots = allowedRoots;
+  renderChatModelOptions();
 
   if (clearBtn) {
     clearBtn.disabled = !canClear;
@@ -202,6 +270,7 @@ async function testOpenAIConnection(options) {
   if (candidate) {
     body.api_key = candidate;
   }
+  body.chat_model = selectedChatModel();
 
   try {
     const payload = await fetchJSON('/api/settings/openai-test', {
@@ -209,6 +278,10 @@ async function testOpenAIConnection(options) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    if (payload && payload.chat_model) {
+      state.openaiChatModel = normalizeChatModel(payload.chat_model);
+      renderChatModelOptions();
+    }
     state.openaiApiKeyVerified = true;
     updateSettingsStatusLine(payload);
     refreshOpenAIAccess();
@@ -250,9 +323,13 @@ async function loadSettings() {
     }
     return payload;
   } catch (err) {
+    state.openaiChatModel = DEFAULT_CHAT_MODEL;
+    state.openaiChatModelSource = 'default';
+    state.openaiChatModelOptions = [DEFAULT_CHAT_MODEL];
     state.openaiApiKeySet = false;
     state.openaiApiKeyVerified = false;
     state.openaiApiKeySource = 'missing';
+    renderChatModelOptions();
     const statusEl = qs('#settings-openai-status');
     if (statusEl) {
       statusEl.classList.add('missing');
@@ -262,6 +339,27 @@ async function loadSettings() {
     setSettingsMessage(`Error loading settings: ${err.message}`, true);
     setSettingsGateMessage(`Error loading settings: ${err.message}`, true);
     return null;
+  }
+}
+
+async function saveChatModel(rawValue) {
+  const chatModel = normalizeChatModel(rawValue);
+  setSettingsMessage('Saving model...', false);
+  try {
+    await fetchJSON('/api/settings/chat-model', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_model: chatModel }),
+    });
+    await loadSettings();
+    if (state.openaiApiKeySet) {
+      await testOpenAIConnection({ useInput: false, silent: false });
+      setSettingsMessage(`LLM model saved and verified: ${chatModel}`, false);
+    } else {
+      setSettingsMessage(`LLM model saved: ${chatModel}`, false);
+    }
+  } catch (err) {
+    setSettingsMessage(`Save model failed: ${err.message}`, true);
   }
 }
 
@@ -2110,6 +2208,13 @@ function bindActions() {
       loadSettings();
     });
   }
+  const settingsChatModelSave = qs('#settings-openai-chat-model-save');
+  if (settingsChatModelSave) {
+    settingsChatModelSave.addEventListener('click', () => {
+      const model = selectedChatModel();
+      saveChatModel(model);
+    });
+  }
   const gateSave = qs('#settings-gate-save');
   if (gateSave) {
     gateSave.addEventListener('click', () => {
@@ -2272,6 +2377,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateDebugLoadButtonState();
   setSettingsMessage('', false);
   setSettingsGateMessage('', false);
+  renderChatModelOptions();
   await loadSettings();
   loadHealth();
   loadRepos();

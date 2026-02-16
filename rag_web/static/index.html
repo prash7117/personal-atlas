@@ -267,6 +267,15 @@
           <div class="subtle">Configure runtime secrets and startup requirements.</div>
           <div id="settings-openai-status" class="settings-status">Checking OpenAI API key...</div>
           <label class="settings-field">
+            LLM model
+            <select id="settings-openai-chat-model">
+              <option value="gpt-5-mini">gpt-5-mini</option>
+            </select>
+          </label>
+          <div class="row settings-actions">
+            <button id="settings-openai-chat-model-save" class="ghost" type="button">Save model</button>
+          </div>
+          <label class="settings-field">
             OpenAI API key
             <input
               id="settings-openai-key"
